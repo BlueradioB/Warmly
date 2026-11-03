@@ -209,7 +209,7 @@ async function requestMagicLink(event) {
   try {
     const { error } = await supabaseClient.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: location.origin, shouldCreateUser: false }
+      options: { emailRedirectTo: location.origin, shouldCreateUser: true }
     });
     if (error) throw error;
     setAuthStatus("Check your inbox for a secure sign-in link.");
@@ -235,11 +235,20 @@ async function openPrivateWorkspace(user) {
   currentUser = user;
   showAuthGate("Opening your private circle…");
   try {
+    const claim = await supabaseClient.rpc("claim_owner");
+    if (claim.error) throw claim.error;
+    if (claim.data !== true) {
+      currentUser = null;
+      remoteSnapshot = null;
+      await supabaseClient.auth.signOut();
+      showAuthGate("This email isn’t the one allowlisted for this private Warmly space. Check the owner email configured in Supabase.");
+      return;
+    }
     const owner = await supabaseClient.from("app_owner").select("user_id").maybeSingle();
     if (owner.error) throw owner.error;
     if (!owner.data || owner.data.user_id !== user.id) {
       await supabaseClient.auth.signOut();
-      showAuthGate("This account isn’t invited to this private Warmly space.");
+      showAuthGate("This account isn’t the configured owner of this private Warmly space.");
       return;
     }
     const [contactsResult, activitiesResult, fieldsResult, valuesResult] = await Promise.all([
@@ -277,7 +286,7 @@ async function openPrivateWorkspace(user) {
     currentUser = null;
     remoteSnapshot = null;
     await supabaseClient.auth.signOut();
-    showAuthGate(error.message?.includes("app_owner")
+    showAuthGate(error.message?.includes("app_owner") || error.message?.includes("claim_owner")
       ? "Warmly’s private database isn’t set up yet."
       : "Couldn’t open your private space. Please try again or check the setup.");
   } finally {
@@ -470,6 +479,7 @@ function render() {
   renderDashboardContacts();
   renderContacts();
   renderCharts();
+  renderCompanyFollowUps();
   renderScriptContacts();
 }
 
@@ -506,6 +516,55 @@ function renderDashboardContacts() {
     return (latestActivity(b)?.date || b.createdAt).localeCompare(latestActivity(a)?.date || a.createdAt);
   }).slice(0, 5);
   target.innerHTML = prioritized.map(contactRow).join("");
+}
+
+function businessDaysElapsed(startDate, endDate = dateOnly()) {
+  if (!startDate || startDate >= endDate) return 0;
+  const date = new Date(`${startDate}T00:00:00Z`);
+  const end = new Date(`${endDate}T00:00:00Z`);
+  let count = 0;
+  date.setUTCDate(date.getUTCDate() + 1);
+  while (date <= end) {
+    const weekday = date.getUTCDay();
+    if (weekday !== 0 && weekday !== 6) count += 1;
+    date.setUTCDate(date.getUTCDate() + 1);
+  }
+  return count;
+}
+
+function companyFollowUps() {
+  return state.contacts.flatMap(contact => {
+    const company = (contact.company || "").trim();
+    if (!company || company === "—") return [];
+    const activities = contact.activities || [];
+    const outreach = activities
+      .filter(activity => activity.type === "outreach")
+      .sort((a, b) => b.date.localeCompare(a.date))[0];
+    if (!outreach) return [];
+    const hasResponse = activities.some(activity =>
+      activity.type === "response" && activity.date >= outreach.date
+    );
+    if (hasResponse) return [];
+    const businessDays = businessDaysElapsed(outreach.date);
+    if (businessDays < 3) return [];
+    return [{ contact, outreach, businessDays }];
+  }).sort((a, b) => b.businessDays - a.businessDays || a.contact.name.localeCompare(b.contact.name));
+}
+
+function renderCompanyFollowUps() {
+  const section = document.getElementById("company-follow-ups");
+  const reminders = companyFollowUps();
+  section.classList.toggle("hidden", reminders.length === 0);
+  document.getElementById("follow-up-count").textContent = reminders.length;
+  document.getElementById("follow-up-list").innerHTML = reminders.map(({ contact, outreach, businessDays }) => `
+    <article class="follow-up-card">
+      <span class="follow-up-heart suit-heart" aria-hidden="true">♥</span>
+      <div class="follow-up-person">
+        <strong>${escapeHtml(contact.name)}</strong>
+        <span>${escapeHtml(contact.company)} · Reached out ${escapeHtml(prettyDate(outreach.date))} · ${businessDays} business days</span>
+      </div>
+      <button class="text-button find-company-contact" type="button" data-company="${escapeHtml(contact.company)}">Find another contact <span>→</span></button>
+    </article>`).join("");
 }
 
 function contactRow(contact) {
@@ -586,10 +645,28 @@ function lineChart(months, values) {
 function switchView(view) {
   document.querySelectorAll(".view").forEach(element => element.classList.toggle("active", element.id === `${view}-view`));
   document.querySelectorAll(".nav-link").forEach(element => element.classList.toggle("active", element.dataset.view === view));
-  document.getElementById("page-crumb").textContent = ({ dashboard: "Dashboard", contacts: "Contacts", emails: "Email scripts" })[view];
+  document.getElementById("page-crumb").textContent = ({ dashboard: "Dashboard", contacts: "Contacts", emails: "Email scripts", settings: "Account settings" })[view];
   document.getElementById("add-contact-top").classList.toggle("hidden", view !== "dashboard");
   if (view === "contacts") renderContacts();
   if (view === "emails") renderEmailScripts();
+  if (view === "settings") renderAccountSettings();
+}
+
+function renderAccountSettings() {
+  const isSignedIn = Boolean(currentUser);
+  document.getElementById("settings-email").textContent = currentUser?.email || "Local demo";
+  document.getElementById("settings-sign-in-method").textContent = isSignedIn ? "Email sign-in link" : "This browser";
+  document.getElementById("settings-storage").textContent = isSignedIn ? "Private Supabase workspace" : "Saved on this device";
+  document.getElementById("settings-note").textContent = isSignedIn
+    ? "Your contacts and moments are stored in your private Warmly workspace. Only your account can access them."
+    : "Your local demo data stays in this browser. Sign in with your private account to use Warmly across sessions.";
+}
+
+function findAnotherCompanyContact(company) {
+  activeFilter = "all";
+  document.querySelectorAll(".filter-pill").forEach(pill => pill.classList.toggle("active", pill.dataset.filter === "all"));
+  document.getElementById("contact-search").value = company;
+  switchView("contacts");
 }
 
 function renderScriptContacts() {
@@ -782,6 +859,7 @@ function showToast(message) {
 }
 
 document.querySelectorAll(".nav-link").forEach(button => button.addEventListener("click", () => switchView(button.dataset.view)));
+document.getElementById("open-account-settings").addEventListener("click", () => switchView("settings"));
 document.querySelectorAll(".email-template-tab").forEach(button => button.addEventListener("click", () => {
   activeEmailTemplate = button.dataset.template;
   renderEmailScripts();
@@ -798,6 +876,10 @@ document.getElementById("add-contact-top").addEventListener("click", () => openC
 document.getElementById("add-contact-page").addEventListener("click", () => openContactForm());
 document.getElementById("empty-add-contact").addEventListener("click", () => openContactForm());
 document.getElementById("view-all-contacts").addEventListener("click", () => switchView("contacts"));
+document.getElementById("follow-up-list").addEventListener("click", event => {
+  const button = event.target.closest(".find-company-contact");
+  if (button) findAnotherCompanyContact(button.dataset.company);
+});
 document.getElementById("manage-fields").addEventListener("click", openFieldManager);
 document.getElementById("contact-search").addEventListener("input", renderContacts);
 document.getElementById("trend-range").addEventListener("change", renderCharts);

@@ -111,5 +111,4 @@ create trigger custom_values_check_type
   before insert or update on public.custom_values
   for each row execute function public.validate_custom_value_type();
 
--- After creating your one allowed Auth user, add that user's UUID here.
--- insert into public.app_owner (user_id) values ('YOUR_AUTH_USER_UUID');
+-- Apply the owner-email signup migration next, then allowlist your email before signing up.

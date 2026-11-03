@@ -14,14 +14,14 @@
     <section class="auth-gate hidden" id="auth-gate" aria-labelledby="auth-title">
       <a class="brand auth-brand" href="#" aria-label="Warmly home">
         <span class="brand-mark" aria-hidden="true">
-          <span class="brand-flame brand-flame-left"></span><span class="brand-flame brand-flame-center"></span><span class="brand-flame brand-flame-right"></span><span class="brand-heart">♥</span>
+          <span class="brand-flame"></span><span class="brand-heart">♥</span>
         </span><span>warmly</span>
       </a>
       <div class="auth-card panel">
         <div class="auth-icon suit-heart">♥</div>
         <span class="section-kicker">A LITTLE SPACE, JUST FOR YOU</span>
         <h1 id="auth-title">Your circle,<br><span>kept close.</span></h1>
-        <p id="auth-description">Sign in with your email and we’ll send you a private link to your Warmly space.</p>
+        <p id="auth-description">Enter your owner email. We’ll create your account if needed, then send you a private sign-in link.</p>
         <form id="auth-form">
           <label class="field"><span>Email address</span><input id="auth-email" type="email" name="email" autocomplete="email" required placeholder="you@example.com"></label>
           <button class="button button-primary auth-submit" id="auth-submit" type="submit">Email me a sign-in link <span>→</span></button>
@@ -34,9 +34,7 @@
       <aside class="sidebar">
         <a class="brand" href="#" aria-label="Warmly home">
           <span class="brand-mark" aria-hidden="true">
-            <span class="brand-flame brand-flame-left"></span>
-            <span class="brand-flame brand-flame-center"></span>
-            <span class="brand-flame brand-flame-right"></span>
+            <span class="brand-flame"></span>
             <span class="brand-heart">♥</span>
           </span>
           <span>warmly</span>
@@ -46,6 +44,7 @@
           <button class="nav-link active" data-view="dashboard"><span class="nav-icon suit-spade" aria-hidden="true">♠</span> Dashboard</button>
           <button class="nav-link" data-view="contacts"><span class="nav-icon suit-heart" aria-hidden="true">♥</span> Contacts <span class="nav-count" id="nav-contact-count">0</span></button>
           <button class="nav-link" data-view="emails"><span class="nav-icon suit-diamond" aria-hidden="true">♦</span> Email scripts</button>
+          <button class="nav-link" data-view="settings"><span class="nav-icon suit-club" aria-hidden="true">♣</span> Account settings</button>
         </nav>
         <div class="sidebar-bottom">
           <div class="sidebar-note">
@@ -53,11 +52,11 @@
             <p>Good relationships<br>are built <em>one moment</em><br>at a time.</p>
             <span class="note-byline">A LITTLE REMINDER</span>
           </div>
-          <div class="profile">
+          <button class="profile profile-link" id="open-account-settings" type="button" aria-label="Open account settings">
             <div class="avatar avatar-you">Y</div>
             <div><strong>Your space</strong><small>Personal CRM</small></div>
-            <button class="profile-menu hidden" id="sign-out" type="button" aria-label="Sign out">Sign out</button>
-          </div>
+            <span class="profile-chevron" aria-hidden="true">→</span>
+          </button>
         </div>
       </aside>
 
@@ -155,6 +154,15 @@
             </article>
           </div>
 
+          <section class="follow-up-section hidden" id="company-follow-ups" aria-labelledby="follow-up-title">
+            <div class="section-heading follow-up-heading">
+              <div><span class="section-kicker">A THOUGHTFUL NEXT STEP</span><h2 id="follow-up-title">Keep the conversation moving</h2></div>
+              <span class="follow-up-count" id="follow-up-count"></span>
+            </div>
+            <p class="follow-up-intro">It’s been three business days since you reached out. Consider finding another person at their company.</p>
+            <div class="follow-up-list" id="follow-up-list"></div>
+          </section>
+
           <div class="section-heading contact-section-heading">
             <div><span class="section-kicker">KEEP THE GOOD THING GOING</span><h2>Your connections</h2></div>
             <button class="text-button" id="view-all-contacts">View all <span>→</span></button>
@@ -225,6 +233,27 @@
               <div class="compose-footer"><span class="compose-hint">Make any final edits, then copy your note.</span><button class="button button-primary" id="copy-email"><span>▣</span> Copy email</button></div>
             </article>
           </div>
+        </section>
+
+        <section class="view" id="settings-view">
+          <div class="settings-page-header">
+            <div class="eyebrow"><span class="eyebrow-line"></span> YOUR SPACE, YOUR WAY</div>
+            <h1>Account <span>settings.</span></h1>
+            <p class="welcome-copy">Your sign-in and privacy details for Warmly.</p>
+          </div>
+          <article class="settings-card panel">
+            <div class="settings-card-heading">
+              <span class="settings-icon suit-club" aria-hidden="true">♣</span>
+              <div><span class="section-kicker">ACCOUNT</span><h2>Your sign-in</h2></div>
+            </div>
+            <dl class="settings-details">
+              <div><dt>Email address</dt><dd id="settings-email">Local demo</dd></div>
+              <div><dt>Sign-in method</dt><dd id="settings-sign-in-method">This browser</dd></div>
+              <div><dt>Data storage</dt><dd id="settings-storage">Saved on this device</dd></div>
+            </dl>
+            <p class="settings-note" id="settings-note">Your local demo data stays in this browser. Sign in with your private account to use Warmly across sessions.</p>
+            <button class="button settings-sign-out hidden" id="sign-out" type="button">Sign out <span aria-hidden="true">→</span></button>
+          </article>
         </section>
       </main>
     </div>
