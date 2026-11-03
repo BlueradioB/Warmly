@@ -21,10 +21,21 @@
         <div class="auth-icon suit-heart">♥</div>
         <span class="section-kicker">A LITTLE SPACE, JUST FOR YOU</span>
         <h1 id="auth-title">Your circle,<br><span>kept close.</span></h1>
-        <p id="auth-description">Enter your owner email. We’ll create your account if needed, then send you a private sign-in link.</p>
+        <p id="auth-description">Sign in to your private Warmly space with your email and password.</p>
+        <div class="auth-mode-toggle" role="group" aria-label="Account action">
+          <button class="auth-mode active" id="auth-mode-sign-in" type="button" aria-pressed="true">Sign in</button>
+          <button class="auth-mode" id="auth-mode-sign-up" type="button" aria-pressed="false">Create account</button>
+        </div>
         <form id="auth-form">
           <label class="field"><span>Email address</span><input id="auth-email" type="email" name="email" autocomplete="email" required placeholder="you@example.com"></label>
-          <button class="button button-primary auth-submit" id="auth-submit" type="submit">Email me a sign-in link <span>→</span></button>
+          <label class="field"><span>Password</span><input id="auth-password" type="password" name="password" autocomplete="current-password" minlength="6" required placeholder="At least 6 characters"></label>
+          <button class="auth-forgot" id="forgot-password" type="button">Forgot password?</button>
+          <button class="button button-primary auth-submit" id="auth-submit" type="submit">Sign in <span>→</span></button>
+        </form>
+        <form id="password-reset-form" class="hidden">
+          <label class="field"><span>New password</span><input id="new-password" type="password" name="password" autocomplete="new-password" minlength="6" required placeholder="At least 6 characters"></label>
+          <label class="field"><span>Confirm new password</span><input id="confirm-password" type="password" name="confirm-password" autocomplete="new-password" minlength="6" required placeholder="Enter your new password again"></label>
+          <button class="button button-primary auth-submit" type="submit">Save new password <span>→</span></button>
         </form>
         <p class="auth-status" id="auth-status" role="status"></p>
       </div>
@@ -254,6 +265,18 @@
             <p class="settings-note" id="settings-note">Your local demo data stays in this browser. Sign in with your private account to use Warmly across sessions.</p>
             <button class="button settings-sign-out hidden" id="sign-out" type="button">Sign out <span aria-hidden="true">→</span></button>
           </article>
+          <article class="settings-card settings-export-card panel">
+            <div class="settings-card-heading">
+              <span class="settings-icon suit-diamond" aria-hidden="true">♦</span>
+              <div><span class="section-kicker">YOUR DATA</span><h2>Export your circle</h2></div>
+            </div>
+            <p class="settings-note">Download your contacts, custom fields, and logged moments. CSV files open in spreadsheet apps; the Excel workbook keeps each data set on its own sheet.</p>
+            <div class="export-actions">
+              <button class="button secondary-button" id="export-contacts-csv" type="button">Contacts CSV</button>
+              <button class="button secondary-button" id="export-activities-csv" type="button">Activity CSV</button>
+              <button class="button button-primary" id="export-excel" type="button">Excel workbook <span aria-hidden="true">↓</span></button>
+            </div>
+          </article>
         </section>
       </main>
     </div>
@@ -269,6 +292,7 @@
     </div>
     <div class="toast hidden" id="toast" role="status"></div>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="app.js"></script>
   </body>
 </html>
