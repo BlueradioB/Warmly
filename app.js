@@ -22,6 +22,8 @@ let toastTimer;
 let supabaseClient = null;
 let currentUser = null;
 let openingUserId = null;
+let passwordRecoveryPending = false;
+let authMode = "sign-in";
 let remoteSnapshot = null;
 let remoteSaveQueue = Promise.resolve();
 let preparingRemoteState = false;
@@ -137,6 +139,7 @@ function showAuthGate(message = "") {
 function showAppShell() {
   document.getElementById("auth-gate").classList.add("hidden");
   document.getElementById("app-shell").classList.remove("hidden");
+  document.getElementById("sign-out").classList.toggle("hidden", !currentUser);
 }
 
 async function initializeBackend() {
@@ -177,13 +180,20 @@ async function initializeBackend() {
     auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
   });
   document.getElementById("sign-out").classList.remove("hidden");
-  document.getElementById("auth-form").addEventListener("submit", requestMagicLink);
+  document.getElementById("auth-form").addEventListener("submit", submitAuthForm);
+  document.getElementById("auth-mode-sign-in").addEventListener("click", () => setAuthMode("sign-in"));
+  document.getElementById("auth-mode-sign-up").addEventListener("click", () => setAuthMode("sign-up"));
+  document.getElementById("forgot-password").addEventListener("click", requestPasswordReset);
+  document.getElementById("password-reset-form").addEventListener("submit", saveNewPassword);
   document.getElementById("sign-out").addEventListener("click", signOut);
   document.getElementById("import-local-data").addEventListener("click", importLocalData);
   document.getElementById("discard-local-data").addEventListener("click", discardLocalData);
 
-  supabaseClient.auth.onAuthStateChange((_event, session) => {
-    if (session?.user) setTimeout(() => void openPrivateWorkspace(session.user), 0);
+  supabaseClient.auth.onAuthStateChange((event, session) => {
+    if (event === "PASSWORD_RECOVERY") {
+      passwordRecoveryPending = true;
+      showPasswordResetForm();
+    } else if (session?.user && !passwordRecoveryPending) setTimeout(() => void openPrivateWorkspace(session.user), 0);
     else {
       currentUser = null;
       remoteSnapshot = null;
@@ -196,26 +206,110 @@ async function initializeBackend() {
     showAuthGate("Couldn’t restore your session. Sign in again.");
     return;
   }
-  if (data.session?.user) await openPrivateWorkspace(data.session.user);
+  if (data.session?.user && !passwordRecoveryPending) await openPrivateWorkspace(data.session.user);
   else showAuthGate();
 }
 
-async function requestMagicLink(event) {
+function setAuthMode(mode) {
+  authMode = mode;
+  const isSignUp = mode === "sign-up";
+  document.getElementById("auth-mode-sign-in").classList.toggle("active", !isSignUp);
+  document.getElementById("auth-mode-sign-in").setAttribute("aria-pressed", String(!isSignUp));
+  document.getElementById("auth-mode-sign-up").classList.toggle("active", isSignUp);
+  document.getElementById("auth-mode-sign-up").setAttribute("aria-pressed", String(isSignUp));
+  document.getElementById("auth-password").autocomplete = isSignUp ? "new-password" : "current-password";
+  document.getElementById("auth-submit").innerHTML = `${isSignUp ? "Create account" : "Sign in"} <span>→</span>`;
+  document.getElementById("forgot-password").classList.toggle("hidden", isSignUp);
+  document.getElementById("auth-description").textContent = isSignUp
+    ? "Create an account with your owner email. Only the email allowlisted for this Warmly space can access it."
+    : "Sign in to your private Warmly space with your email and password.";
+  setAuthStatus("");
+}
+
+async function submitAuthForm(event) {
   event.preventDefault();
   const email = document.getElementById("auth-email").value.trim();
+  const password = document.getElementById("auth-password").value;
   const button = document.getElementById("auth-submit");
   button.disabled = true;
-  setAuthStatus("Sending your private sign-in link…");
+  setAuthStatus(authMode === "sign-up" ? "Creating your account…" : "Signing in…");
   try {
-    const { error } = await supabaseClient.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: location.origin, shouldCreateUser: true }
-    });
-    if (error) throw error;
-    setAuthStatus("Check your inbox for a secure sign-in link.");
+    if (authMode === "sign-up") {
+      const { data, error } = await supabaseClient.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: location.origin }
+      });
+      if (error) throw error;
+      if (data.session?.user) {
+        await openPrivateWorkspace(data.session.user);
+      } else {
+        setAuthStatus("If this email can be registered, check your inbox to confirm the account. Then sign in with your password.");
+      }
+    } else {
+      const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      if (data.user) await openPrivateWorkspace(data.user);
+    }
   } catch (error) {
-    console.error("Warmly could not send a sign-in link.", error);
-    setAuthStatus(error.message || "Couldn’t send a sign-in link. Please try again.", true);
+    console.error(`Warmly could not ${authMode === "sign-up" ? "create an account" : "sign in"}.`, error);
+    setAuthStatus(error.message || "Couldn’t complete that request. Please try again.", true);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function requestPasswordReset() {
+  const email = document.getElementById("auth-email").value.trim();
+  if (!email) {
+    document.getElementById("auth-email").focus();
+    setAuthStatus("Enter your email address first, and we’ll send a password reset link.", true);
+    return;
+  }
+  const button = document.getElementById("forgot-password");
+  button.disabled = true;
+  setAuthStatus("Sending your password reset link…");
+  try {
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo: location.origin });
+    if (error) throw error;
+    setAuthStatus("If an account exists for that email, a password reset link is on its way.");
+  } catch (error) {
+    console.error("Warmly could not send a password reset link.", error);
+    setAuthStatus(error.message || "Couldn’t send a reset link. Please try again.", true);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function showPasswordResetForm() {
+  showAuthGate();
+  document.getElementById("auth-form").classList.add("hidden");
+  document.querySelector(".auth-mode-toggle").classList.add("hidden");
+  document.getElementById("password-reset-form").classList.remove("hidden");
+  document.getElementById("auth-description").textContent = "Choose a new password for your Warmly account.";
+  setAuthStatus("");
+}
+
+async function saveNewPassword(event) {
+  event.preventDefault();
+  const password = document.getElementById("new-password").value;
+  const confirmation = document.getElementById("confirm-password").value;
+  if (password !== confirmation) {
+    setAuthStatus("Those passwords don’t match. Please try again.", true);
+    return;
+  }
+  const button = document.querySelector("#password-reset-form button[type=submit]");
+  button.disabled = true;
+  setAuthStatus("Updating your password…");
+  try {
+    const { data, error } = await supabaseClient.auth.updateUser({ password });
+    if (error) throw error;
+    passwordRecoveryPending = false;
+    setAuthStatus("Password updated. Opening your Warmly space…");
+    if (data.user) await openPrivateWorkspace(data.user);
+  } catch (error) {
+    console.error("Warmly could not update the password.", error);
+    setAuthStatus(error.message || "Couldn’t update your password. Please try again.", true);
   } finally {
     button.disabled = false;
   }
@@ -655,11 +749,76 @@ function switchView(view) {
 function renderAccountSettings() {
   const isSignedIn = Boolean(currentUser);
   document.getElementById("settings-email").textContent = currentUser?.email || "Local demo";
-  document.getElementById("settings-sign-in-method").textContent = isSignedIn ? "Email sign-in link" : "This browser";
+  document.getElementById("settings-sign-in-method").textContent = isSignedIn ? "Email and password" : "This browser";
   document.getElementById("settings-storage").textContent = isSignedIn ? "Private Supabase workspace" : "Saved on this device";
   document.getElementById("settings-note").textContent = isSignedIn
     ? "Your contacts and moments are stored in your private Warmly workspace. Only your account can access them."
     : "Your local demo data stays in this browser. Sign in with your private account to use Warmly across sessions.";
+}
+
+function exportContactRows() {
+  const customFields = state.customFields || [];
+  const headers = [
+    "Name", "Email", "Company", "Role", "Relationship", "First connected", "Notes",
+    ...customFields.map(field => field.name)
+  ];
+  const rows = state.contacts.map(contact => [
+    contact.name, contact.email || "", contact.company === "—" ? "" : contact.company || "",
+    contact.role || "", contact.relationship || "", contact.createdAt || "", contact.notes || "",
+    ...customFields.map(field => contact.custom?.[field.id] || "")
+  ]);
+  return [headers, ...rows];
+}
+
+function exportActivityRows() {
+  const rows = [["Contact", "Email", "Company", "Type", "Date", "Note"]];
+  for (const contact of state.contacts) {
+    for (const activity of contact.activities || []) {
+      rows.push([
+        contact.name, contact.email || "", contact.company === "—" ? "" : contact.company || "",
+        activityLabels[activity.type] || activity.type || "", activity.date || "", activity.note || ""
+      ]);
+    }
+  }
+  return rows;
+}
+
+function csvCell(value) {
+  let text = String(value ?? "");
+  if (/^[\t\r\n ]*[=+\-@]/.test(text)) text = `'${text}`;
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
+function downloadFile(filename, content, mimeType) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function exportCsv(filename, rows) {
+  const csv = `\uFEFF${rows.map(row => row.map(csvCell).join(",")).join("\r\n")}`;
+  downloadFile(filename, csv, "text/csv;charset=utf-8");
+  showToast(`${filename} downloaded`);
+}
+
+function exportExcel() {
+  if (!window.XLSX) {
+    showToast("Excel export is unavailable. Check your internet connection and try again.");
+    return;
+  }
+  const workbook = window.XLSX.utils.book_new();
+  window.XLSX.utils.book_append_sheet(workbook, window.XLSX.utils.aoa_to_sheet(exportContactRows()), "Contacts");
+  window.XLSX.utils.book_append_sheet(workbook, window.XLSX.utils.aoa_to_sheet(exportActivityRows()), "Activity log");
+  window.XLSX.utils.book_append_sheet(workbook, window.XLSX.utils.aoa_to_sheet([
+    ["Field name", "Type"],
+    ...(state.customFields || []).map(field => [field.name, field.type === "date" ? "Date" : "Text"])
+  ]), "Custom fields");
+  window.XLSX.writeFile(workbook, `warmly-export-${dateOnly()}.xlsx`);
+  showToast("Excel workbook downloaded");
 }
 
 function findAnotherCompanyContact(company) {
@@ -860,6 +1019,13 @@ function showToast(message) {
 
 document.querySelectorAll(".nav-link").forEach(button => button.addEventListener("click", () => switchView(button.dataset.view)));
 document.getElementById("open-account-settings").addEventListener("click", () => switchView("settings"));
+document.getElementById("export-contacts-csv").addEventListener("click", () =>
+  exportCsv(`warmly-contacts-${dateOnly()}.csv`, exportContactRows())
+);
+document.getElementById("export-activities-csv").addEventListener("click", () =>
+  exportCsv(`warmly-activities-${dateOnly()}.csv`, exportActivityRows())
+);
+document.getElementById("export-excel").addEventListener("click", exportExcel);
 document.querySelectorAll(".email-template-tab").forEach(button => button.addEventListener("click", () => {
   activeEmailTemplate = button.dataset.template;
   renderEmailScripts();

@@ -183,6 +183,12 @@ h1 span { color: #77907f; } .welcome-copy { color: #8d9690; margin: 0; font-size
 .auth-card .field { gap: 7px; }
 .auth-card .field span { color: #727f76; font-size: 10px; font-weight: 600; }
 .auth-card .field input { height: 42px; font-size: 12px; }
+.auth-mode-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; margin-bottom: 16px; border-radius: 9px; background: #f2f5f1; }
+.auth-mode { height: 34px; border: 0; border-radius: 6px; background: transparent; color: #829087; font-size: 10px; font-weight: 600; }
+.auth-mode.active { background: white; color: var(--green); box-shadow: 0 1px 4px #26323112; }
+.auth-card #auth-form, .auth-card #password-reset-form { display: grid; gap: 13px; }
+.auth-forgot { justify-self: end; margin-top: -6px; padding: 0; border: 0; background: transparent; color: #748c79; font-size: 10px; }
+.auth-forgot:hover { color: var(--green); text-decoration: underline; }
 .auth-submit { width: 100%; margin-top: 12px; }
 .auth-status { min-height: 15px; color: #728c77; font-size: 10px; margin: 14px 0 0; line-height: 1.5; }
 .auth-status.error { color: #b66c58; }
@@ -224,4 +230,10 @@ h1 span { color: #77907f; } .welcome-copy { color: #8d9690; margin: 0; font-size
 .settings-note { max-width: 520px; margin: 17px 0 0; color: #8d9690; font-size: 11px; line-height: 1.7; }
 .settings-sign-out { margin-top: 20px; background: #fff1ed; color: #b66555; }
 .settings-sign-out:hover { background: #ffe8e1; }
+.settings-export-card { margin-top: 14px; }
+.settings-export-card .settings-card-heading { border-bottom: 0; padding-bottom: 0; }
+.settings-export-card .settings-note { margin-top: 12px; }
+.export-actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 17px; }
+.export-actions .button { height: 37px; font-size: 10px; }
+.export-actions .secondary-button { border: 1px solid #e8ede8; }
 @media (max-width: 760px) { .profile-link { width: 100%; padding-left: 0; padding-right: 0; }.profile-chevron { display: none; }.settings-page-header { padding: 32px 0 20px; }.settings-page-header h1 { font-size: 29px; }.settings-card { padding: 16px; }.settings-details > div { grid-template-columns: 110px minmax(0, 1fr); gap: 10px; } }
