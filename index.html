@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f7f7f4">
+    <title>Warmly — relationships, thoughtfully kept</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <section class="auth-gate hidden" id="auth-gate" aria-labelledby="auth-title">
+      <a class="brand auth-brand" href="#" aria-label="Warmly home">
+        <span class="brand-mark" aria-hidden="true">
+          <span class="brand-flame brand-flame-left"></span><span class="brand-flame brand-flame-center"></span><span class="brand-flame brand-flame-right"></span><span class="brand-heart">♥</span>
+        </span><span>warmly</span>
+      </a>
+      <div class="auth-card panel">
+        <div class="auth-icon suit-heart">♥</div>
+        <span class="section-kicker">A LITTLE SPACE, JUST FOR YOU</span>
+        <h1 id="auth-title">Your circle,<br><span>kept close.</span></h1>
+        <p id="auth-description">Sign in with your email and we’ll send you a private link to your Warmly space.</p>
+        <form id="auth-form">
+          <label class="field"><span>Email address</span><input id="auth-email" type="email" name="email" autocomplete="email" required placeholder="you@example.com"></label>
+          <button class="button button-primary auth-submit" id="auth-submit" type="submit">Email me a sign-in link <span>→</span></button>
+        </form>
+        <p class="auth-status" id="auth-status" role="status"></p>
+      </div>
+      <p class="auth-footnote">Private by design. Only your invited account can open this space.</p>
+    </section>
+    <div class="app-shell hidden" id="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="#" aria-label="Warmly home">
+          <span class="brand-mark" aria-hidden="true">
+            <span class="brand-flame brand-flame-left"></span>
+            <span class="brand-flame brand-flame-center"></span>
+            <span class="brand-flame brand-flame-right"></span>
+            <span class="brand-heart">♥</span>
+          </span>
+          <span>warmly</span>
+        </a>
+        <div class="workspace-label">YOUR SPACE</div>
+        <nav class="main-nav" aria-label="Main navigation">
+          <button class="nav-link active" data-view="dashboard"><span class="nav-icon suit-spade" aria-hidden="true">♠</span> Dashboard</button>
+          <button class="nav-link" data-view="contacts"><span class="nav-icon suit-heart" aria-hidden="true">♥</span> Contacts <span class="nav-count" id="nav-contact-count">0</span></button>
+          <button class="nav-link" data-view="emails"><span class="nav-icon suit-diamond" aria-hidden="true">♦</span> Email scripts</button>
+        </nav>
+        <div class="sidebar-bottom">
+          <div class="sidebar-note">
+            <span class="note-spark">✳</span>
+            <p>Good relationships<br>are built <em>one moment</em><br>at a time.</p>
+            <span class="note-byline">A LITTLE REMINDER</span>
+          </div>
+          <div class="profile">
+            <div class="avatar avatar-you">Y</div>
+            <div><strong>Your space</strong><small>Personal CRM</small></div>
+            <button class="profile-menu hidden" id="sign-out" type="button" aria-label="Sign out">Sign out</button>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="topbar">
+          <div class="breadcrumbs"><span>YOUR SPACE</span><span class="crumb-slash">/</span><strong id="page-crumb">Dashboard</strong></div>
+          <div class="topbar-actions">
+            <div class="today-label"><span class="today-dot"></span><span id="today-date"></span></div>
+            <button class="button button-primary button-small" id="add-contact-top"><span class="plus">+</span> Add contact</button>
+          </div>
+        </header>
+        <aside class="import-notice hidden" id="import-notice" aria-live="polite">
+          <div><strong>A copy of your circle is saved on this device.</strong><p id="import-description">Would you like to move it into your private Warmly account?</p></div>
+          <div class="import-actions"><button class="button secondary-button" id="discard-local-data">Start fresh</button><button class="button button-primary" id="import-local-data">Import saved contacts</button></div>
+        </aside>
+
+        <section class="view active" id="dashboard-view">
+          <div class="welcome-row">
+            <div>
+              <div class="eyebrow"><span class="eyebrow-line"></span> MONDAY, NOVEMBER 2, 2026</div>
+              <h1>Your relationships,<br><span>in good shape.</span></h1>
+              <p class="welcome-copy">A little attention goes a long way. Here’s how your connections are doing.</p>
+            </div>
+            <div class="welcome-art" aria-hidden="true">
+              <svg class="welcome-heart-flame" viewBox="0 0 200 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <radialGradient id="flame-halo" cx="0" cy="0" r="1" gradientTransform="matrix(0 75 -75 0 101 83)" gradientUnits="userSpaceOnUse">
+                    <stop stop-color="#F7D6B2" stop-opacity=".72"/>
+                    <stop offset="1" stop-color="#F7D6B2" stop-opacity="0"/>
+                  </radialGradient>
+                  <linearGradient id="flame-outer" x1="72" y1="31" x2="132" y2="119" gradientUnits="userSpaceOnUse">
+                    <stop stop-color="#F2C18A"/>
+                    <stop offset="1" stop-color="#D98258"/>
+                  </linearGradient>
+                  <linearGradient id="flame-inner" x1="99" y1="38" x2="100" y2="102" gradientUnits="userSpaceOnUse">
+                    <stop stop-color="#FFE7BD"/>
+                    <stop offset="1" stop-color="#E9A06A"/>
+                  </linearGradient>
+                  <linearGradient id="heart-fill" x1="76" y1="69" x2="124" y2="126" gradientUnits="userSpaceOnUse">
+                    <stop stop-color="#E99A68"/>
+                    <stop offset="1" stop-color="#C96C55"/>
+                  </linearGradient>
+                </defs>
+                <circle cx="100" cy="82" r="75" fill="url(#flame-halo)"/>
+                <path d="M100 20C88 36 88 47 91 56C82 50 80 42 81 34C65 50 59 65 64 82C69 101 83 113 100 116C119 113 135 99 138 81C141 66 134 50 122 39C123 50 119 57 113 61C116 46 109 31 100 20Z" fill="url(#flame-outer)"/>
+                <path d="M100 43C92 55 94 64 97 70C91 67 88 62 88 57C79 68 77 77 81 87C85 98 92 103 100 105C109 102 117 94 118 84C119 75 115 67 109 61C109 68 106 72 102 74C104 64 104 53 100 43Z" fill="url(#flame-inner)"/>
+                <path d="M100 124C91 117 76 107 76 91C76 81 84 74 94 74C97 74 99 76 100 79C102 76 105 74 109 74C118 74 124 81 124 91C124 107 109 117 100 124Z" fill="url(#heart-fill)"/>
+                <path d="M86 89C86 84 90 81 94 81" stroke="#FFF0D9" stroke-opacity=".72" stroke-width="3" stroke-linecap="round"/>
+                <path d="M50 106C58 113 65 117 74 119M150 106C142 113 135 117 126 119" stroke="#D8B49A" stroke-opacity=".55" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </div>
+          </div>
+
+          <div class="stats-grid">
+            <article class="stat-card">
+              <div class="stat-top"><span class="stat-label">TOTAL CONNECTIONS</span><span class="stat-icon suit-club">♣</span></div>
+              <div class="stat-value" id="stat-total">0</div>
+              <div class="stat-foot"><span class="stat-caption">people in your circle</span><span class="stat-trend neutral" id="stat-total-trend">Your network</span></div>
+            </article>
+            <article class="stat-card">
+              <div class="stat-top"><span class="stat-label">WARM RIGHT NOW</span><span class="stat-icon suit-heart">♥</span></div>
+              <div class="stat-value" id="stat-warm">0</div>
+              <div class="stat-foot"><span class="stat-caption">connected in the last 7 days</span><span class="stat-trend warm-trend" id="warm-percent">—</span></div>
+            </article>
+            <article class="stat-card">
+              <div class="stat-top"><span class="stat-label">MOMENTS THIS MONTH</span><span class="stat-icon suit-diamond">♦</span></div>
+              <div class="stat-value" id="stat-moments">0</div>
+              <div class="stat-foot"><span class="stat-caption">outreach, calls & more</span><span class="stat-trend blue-trend">Keep showing up</span></div>
+            </article>
+            <article class="stat-card stat-card-attention">
+              <div class="stat-top"><span class="stat-label">GROWING COLD</span><span class="stat-icon suit-spade">♠</span></div>
+              <div class="stat-value" id="stat-cold">0</div>
+              <div class="stat-foot"><span class="stat-caption">haven’t connected in 30+ days</span><button class="text-button" id="see-cold">Reach out <span>→</span></button></div>
+            </article>
+          </div>
+
+          <div class="dashboard-grid">
+            <article class="panel activity-panel">
+              <div class="panel-heading">
+                <div><span class="section-kicker">THE BIG PICTURE</span><h2>Your connection rhythm</h2></div>
+                <label class="select-wrap"><select id="trend-range" aria-label="Connection rhythm time range"><option value="6">Last 6 months</option><option value="3">Last 3 months</option><option value="12">Last 12 months</option></select><span>⌄</span></label>
+              </div>
+              <div class="chart-summary"><strong id="chart-total">0</strong><span>moments of connection</span><span class="chart-legend"><i></i> Activities</span></div>
+              <div class="chart-wrap" id="trend-chart" role="img" aria-label="Connection activity over time"></div>
+            </article>
+
+            <article class="panel outcomes-panel">
+              <div class="panel-heading">
+                <div><span class="section-kicker">A LITTLE CONTEXT</span><h2>Outreach outcomes</h2></div>
+                <span class="quiet-icon">↗</span>
+              </div>
+              <div class="outcome-total"><strong id="outcome-total">0</strong><span>logged activities</span></div>
+              <div class="outcome-bars" id="outcome-bars"></div>
+              <div class="outcome-foot"><span><i class="legend-dot warm-dot"></i> Outreach</span><span><i class="legend-dot reply-dot"></i> Replies</span><span><i class="legend-dot call-dot"></i> Calls & meets</span></div>
+            </article>
+          </div>
+
+          <div class="section-heading contact-section-heading">
+            <div><span class="section-kicker">KEEP THE GOOD THING GOING</span><h2>Your connections</h2></div>
+            <button class="text-button" id="view-all-contacts">View all <span>→</span></button>
+          </div>
+          <div class="contact-list panel" id="dashboard-contacts"></div>
+          <div class="empty-state panel hidden" id="dashboard-empty">
+            <div class="empty-illustration">✳</div>
+            <h3>Your circle starts here</h3>
+            <p>Add someone you’d like to stay close to. We’ll help you keep the little moments from slipping by.</p>
+            <button class="button button-primary" id="empty-add-contact">Add your first contact <span>→</span></button>
+          </div>
+        </section>
+
+        <section class="view" id="contacts-view">
+          <div class="contacts-header">
+            <div>
+              <div class="eyebrow"><span class="eyebrow-line"></span> YOUR PEOPLE, ALL IN ONE PLACE</div>
+              <h1>Your <span>circle.</span></h1>
+              <p class="welcome-copy">Every connection has a story. Keep yours close.</p>
+            </div>
+            <button class="button button-primary" id="add-contact-page"><span class="plus">+</span> Add contact</button>
+          </div>
+          <div class="contacts-toolbar">
+            <div class="search-box"><span>⌕</span><input id="contact-search" type="search" placeholder="Find someone in your circle..." autocomplete="off"></div>
+            <div class="filter-pills" role="group" aria-label="Filter contacts by warmth">
+              <button class="filter-pill active" data-filter="all">Everyone <span id="filter-all-count">0</span></button>
+              <button class="filter-pill" data-filter="warm"><i class="warm-dot"></i> Warm</button>
+              <button class="filter-pill" data-filter="cool"><i class="cool-dot"></i> Cooling</button>
+              <button class="filter-pill" data-filter="cold"><i class="cold-dot"></i> Cold</button>
+            </div>
+            <button class="icon-button suit-diamond" id="manage-fields" title="Customize contact fields" aria-label="Customize contact fields">♦</button>
+          </div>
+          <div class="contacts-table-wrap panel">
+            <div class="contacts-table-head"><span>PERSON</span><span>RELATIONSHIP</span><span>LAST MOMENT</span><span>WARMTH</span><span></span></div>
+            <div id="contacts-table"></div>
+            <div class="table-empty hidden" id="contacts-empty"><span>☁</span><strong>No one here just yet</strong><p>Try a different search or add your first contact.</p></div>
+          </div>
+          <div class="contacts-footer"><span id="contacts-count-label">0 people</span><span>Warmth shifts naturally with time. Keep the connection going.</span></div>
+        </section>
+
+        <section class="view" id="emails-view">
+          <div class="email-page-header">
+            <div class="eyebrow"><span class="eyebrow-line"></span> A FEW WORDS GO A LONG WAY</div>
+            <h1>Make it <span>personal.</span></h1>
+            <p class="welcome-copy">Pick a starting point, choose the lines that sound like you, then copy your note into your email.</p>
+          </div>
+          <div class="email-template-tabs" role="tablist" aria-label="Email script templates">
+            <button class="email-template-tab active" id="template-new" role="tab" aria-selected="true" data-template="new">
+              <span class="template-suit suit-heart">♥</span><span><strong>New connection</strong><small>Follow up after meeting someone</small></span><span class="template-arrow">→</span>
+            </button>
+            <button class="email-template-tab" id="template-warm" role="tab" aria-selected="false" data-template="warm">
+              <span class="template-suit suit-diamond">♦</span><span><strong>Keep in touch</strong><small>Reach out and keep the warmth going</small></span><span class="template-arrow">→</span>
+            </button>
+          </div>
+          <div class="email-personalize panel">
+            <div class="email-personalize-copy"><span class="section-kicker">A PERSONAL TOUCH</span><strong>Who are you writing to?</strong><small>We’ll add their first name to your greeting.</small></div>
+            <label class="email-contact-select"><span class="suit-club">♣</span><select id="script-contact" aria-label="Choose a contact"><option value="">Choose a contact (optional)</option></select></label>
+          </div>
+          <div class="email-workspace">
+            <div class="email-banks">
+              <div class="email-bank-heading"><span class="section-kicker">BUILD YOUR NOTE</span><p>Choose one paragraph from each bank. You can edit the finished email before copying.</p></div>
+              <div id="paragraph-banks"></div>
+            </div>
+            <article class="email-compose panel">
+              <div class="compose-heading"><div><span class="section-kicker">YOUR EMAIL</span><h2 id="compose-title">A thoughtful follow-up</h2></div><span class="compose-mark suit-heart" id="compose-mark">♥</span></div>
+              <label class="compose-subject"><span>SUBJECT</span><input id="email-subject" type="text" maxlength="140" aria-label="Email subject"></label>
+              <label class="compose-body"><span class="visually-hidden">Email body</span><textarea id="email-body" spellcheck="true" aria-label="Email body"></textarea></label>
+              <div class="compose-footer"><span class="compose-hint">Make any final edits, then copy your note.</span><button class="button button-primary" id="copy-email"><span>▣</span> Copy email</button></div>
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div class="modal-backdrop hidden" id="modal-backdrop">
+      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal-header">
+          <div><span class="section-kicker" id="modal-kicker">A NEW CONNECTION</span><h2 id="modal-title">Add someone to your circle</h2></div>
+          <button class="icon-button close-modal" aria-label="Close dialog">×</button>
+        </div>
+        <div id="modal-content"></div>
+      </section>
+    </div>
+    <div class="toast hidden" id="toast" role="status"></div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
