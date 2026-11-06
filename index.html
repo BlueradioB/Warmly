@@ -13,9 +13,7 @@
   <body>
     <section class="auth-gate hidden" id="auth-gate" aria-labelledby="auth-title">
       <a class="brand auth-brand" href="#" aria-label="Warmly home">
-        <span class="brand-mark" aria-hidden="true">
-          <span class="brand-flame"></span><span class="brand-heart">♥</span>
-        </span><span>warmly</span>
+        <span class="brand-mark" aria-hidden="true"></span><span>warmly</span>
       </a>
       <div class="auth-card panel">
         <div class="auth-icon suit-heart">♥</div>
@@ -44,10 +42,7 @@
     <div class="app-shell hidden" id="app-shell">
       <aside class="sidebar">
         <a class="brand" href="#" aria-label="Warmly home">
-          <span class="brand-mark" aria-hidden="true">
-            <span class="brand-flame"></span>
-            <span class="brand-heart">♥</span>
-          </span>
+          <span class="brand-mark" aria-hidden="true"></span>
           <span>warmly</span>
         </a>
         <div class="workspace-label">YOUR SPACE</div>
@@ -194,8 +189,12 @@
               <h1>Your <span>circle.</span></h1>
               <p class="welcome-copy">Every connection has a story. Keep yours close.</p>
             </div>
-            <button class="button button-primary" id="add-contact-page"><span class="plus">+</span> Add contact</button>
+            <div class="contacts-header-actions">
+              <button class="button secondary-button" id="import-connections" type="button">Import connections <span aria-hidden="true">↑</span></button>
+              <button class="button button-primary" id="add-contact-page"><span class="plus">+</span> Add contact</button>
+            </div>
           </div>
+          <input class="hidden" id="connection-import-file" type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
           <div class="contacts-toolbar">
             <div class="search-box"><span>⌕</span><input id="contact-search" type="search" placeholder="Find someone in your circle..." autocomplete="off"></div>
             <div class="filter-pills" role="group" aria-label="Filter contacts by warmth">
@@ -207,7 +206,13 @@
             <button class="icon-button suit-diamond" id="manage-fields" title="Customize contact fields" aria-label="Customize contact fields">♦</button>
           </div>
           <div class="contacts-table-wrap panel">
-            <div class="contacts-table-head"><span>PERSON</span><span>RELATIONSHIP</span><span>LAST MOMENT</span><span>WARMTH</span><span></span></div>
+            <div class="contacts-table-head">
+              <button class="contact-sort" type="button" data-sort="name" aria-sort="ascending">PERSON <span aria-hidden="true">↑</span></button>
+              <button class="contact-sort" type="button" data-sort="company">ORGANIZATION <span aria-hidden="true"></span></button>
+              <button class="contact-sort" type="button" data-sort="relationship">RELATIONSHIP <span aria-hidden="true"></span></button>
+              <button class="contact-sort" type="button" data-sort="date">LAST MOMENT <span aria-hidden="true"></span></button>
+              <span>WARMTH</span><span></span>
+            </div>
             <div id="contacts-table"></div>
             <div class="table-empty hidden" id="contacts-empty"><span>☁</span><strong>No one here just yet</strong><p>Try a different search or add your first contact.</p></div>
           </div>

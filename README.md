@@ -30,6 +30,12 @@ The database has row-level security enabled on every exposed table. The `app_own
 
 Open **Account settings → Export your circle** to download contacts as CSV, logged moments as a separate activity CSV, or an Excel workbook containing Contacts, Activity log, and Custom fields sheets.
 
+## Import connections
+
+On the Contacts page, choose **Import connections** and select a CSV or Excel file. The first worksheet should have a header row. Review or change the column mappings, map a required Name column, and choose which rows to import. Possible duplicates are detected by email or by matching name and company, and are excluded by default. Unmapped columns can be ignored or added as custom text fields.
+
+The contacts table includes each connection’s organization and supports sorting by name, organization, relationship, or latest activity date. Name and organization sort A–Z by default; choosing the activity date sorts newest first.
+
 ## Deploy
 
 The app is static HTML, CSS, and JavaScript with a single Vercel function at `api/config.js` to provide the public Supabase client configuration at runtime. There is no build command or framework preset required.

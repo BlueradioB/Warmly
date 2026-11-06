@@ -17,6 +17,7 @@ let hasSavedLocalData = false;
 let state = loadState();
 let localImportCandidate = hasSavedLocalData ? structuredClone(state) : null;
 let activeFilter = "all";
+let contactSort = { key: "name", direction: "asc" };
 let activeContactId = null;
 let toastTimer;
 let supabaseClient = null;
@@ -25,6 +26,7 @@ let openingUserId = null;
 let passwordRecoveryPending = false;
 let authMode = "sign-in";
 let remoteSnapshot = null;
+let pendingConnectionImport = null;
 let remoteSaveQueue = Promise.resolve();
 let preparingRemoteState = false;
 const colors = [
@@ -32,6 +34,15 @@ const colors = [
   ["#e9efe5", "#718269"], ["#f4e8e8", "#976e70"], ["#e9edf7", "#697b9a"]
 ];
 const activityLabels = { outreach: "Outreach", response: "Response", call: "Call", connection: "Connection" };
+const importContactFields = [
+  ["name", "Name", ["name", "fullname", "contactname", "fullcontactname"]],
+  ["email", "Email", ["email", "emailaddress", "e-mail"]],
+  ["company", "Organization", ["company", "organization", "organisation", "employer", "companyname"]],
+  ["role", "Role / title", ["role", "jobtitle", "position", "title", "occupation"]],
+  ["relationship", "Relationship", ["relationship", "type", "connectiontype"]],
+  ["createdAt", "First connected", ["firstconnected", "dateadded", "createdat", "created"]],
+  ["notes", "Notes", ["notes", "note", "memo", "description"]]
+];
 const emailTemplates = {
   new: {
     title: "A thoughtful follow-up",
@@ -519,6 +530,272 @@ function discardLocalData() {
   showToast("Starting with an empty circle");
 }
 
+function normalizeImportHeader(value, index, seen) {
+  const base = String(value || "").trim() || `Column ${index + 1}`;
+  const count = (seen.get(base.toLowerCase()) || 0) + 1;
+  seen.set(base.toLowerCase(), count);
+  return count === 1 ? base : `${base} (${count})`;
+}
+
+function inferImportMapping(header) {
+  const normalized = header.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const standard = importContactFields.find(([, , aliases]) => aliases.includes(normalized));
+  if (standard) return `field:${standard[0]}`;
+  const custom = state.customFields.find(field => field.name.toLowerCase().replace(/[^a-z0-9]/g, "") === normalized);
+  return custom ? `custom:${custom.id}` : "ignore";
+}
+
+async function openConnectionImport(file) {
+  if (!file) return;
+  if (!window.XLSX) {
+    showToast("Import is unavailable. Check your internet connection and try again.");
+    return;
+  }
+  try {
+    const workbook = window.XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
+    const firstSheet = workbook.SheetNames[0];
+    if (!firstSheet) throw new Error("The selected file has no worksheets.");
+    const rawRows = window.XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet], {
+      header: 1, defval: "", raw: false, blankrows: false
+    });
+    if (rawRows.length < 2) throw new Error("Add a header row and at least one contact row to the file.");
+    const seenHeaders = new Map();
+    const headers = rawRows[0].map((header, index) => normalizeImportHeader(header, index, seenHeaders));
+    if (!headers.length || headers.every(header => /^Column \d+$/.test(header))) {
+      throw new Error("The first row must contain column names.");
+    }
+    const rows = rawRows.slice(1).map(values => ({
+      values: headers.map((_, index) => values[index] instanceof Date
+        ? dateOnly(values[index])
+        : String(values[index] ?? "").trim()),
+      include: false,
+      includeTouched: false
+    })).filter(row => row.values.some(value => value !== ""));
+    if (!rows.length) throw new Error("The selected file doesn’t contain any contact rows.");
+    pendingConnectionImport = {
+      filename: file.name,
+      headers,
+      rows,
+      mappings: headers.map(inferImportMapping)
+    };
+    const assignedMappings = new Set();
+    pendingConnectionImport.mappings = pendingConnectionImport.mappings.map(mapping => {
+      if (mapping === "ignore" || assignedMappings.has(mapping)) return "ignore";
+      assignedMappings.add(mapping);
+      return mapping;
+    });
+    analyzeImportRows(pendingConnectionImport);
+    renderConnectionImportReview();
+  } catch (error) {
+    console.error("Warmly could not read the contacts file.", error);
+    showToast(error.message || "Couldn’t read this file. Try a CSV or Excel workbook.");
+  }
+}
+
+function importMappedValues(importState, row) {
+  const values = {};
+  for (let index = 0; index < importState.headers.length; index += 1) {
+    const mapping = importState.mappings[index] || "ignore";
+    if (mapping.startsWith("field:")) values[mapping.slice(6)] = row.values[index];
+    else if (mapping.startsWith("custom:")) values[mapping] = row.values[index];
+    else if (mapping.startsWith("new:")) values[mapping] = row.values[index];
+  }
+  return values;
+}
+
+function normalizedDuplicatePart(value) {
+  return String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function analyzeImportRows(importState) {
+  const emailMatches = new Map();
+  const nameCompanyMatches = new Map();
+  for (const contact of state.contacts) {
+    const email = normalizedDuplicatePart(contact.email);
+    if (email) emailMatches.set(email, contact.name);
+    const company = normalizedDuplicatePart(contact.company === "—" ? "" : contact.company);
+    if (company) nameCompanyMatches.set(`${normalizedDuplicatePart(contact.name)}|${company}`, contact.name);
+  }
+  const seenEmails = new Map();
+  const seenNames = new Map();
+  for (const row of importState.rows) {
+    const values = importMappedValues(importState, row);
+    const name = normalizedDuplicatePart(values.name);
+    const email = normalizedDuplicatePart(values.email);
+    const company = normalizedDuplicatePart(values.company === "—" ? "" : values.company);
+    const nameCompanyKey = company ? `${name}|${company}` : "";
+    row.error = name ? "" : "Name required";
+    row.duplicate = "";
+    if (name && email && (emailMatches.has(email) || seenEmails.has(email))) {
+      row.duplicate = emailMatches.get(email) || seenEmails.get(email);
+    } else if (nameCompanyKey && (nameCompanyMatches.has(nameCompanyKey) || seenNames.has(nameCompanyKey))) {
+      row.duplicate = nameCompanyMatches.get(nameCompanyKey) || seenNames.get(nameCompanyKey);
+    }
+    if (name && email && !seenEmails.has(email)) seenEmails.set(email, values.name);
+    if (name && nameCompanyKey && !seenNames.has(nameCompanyKey)) seenNames.set(nameCompanyKey, values.name);
+    if (!row.includeTouched) row.include = Boolean(name && !row.duplicate);
+  }
+}
+
+function importMappingOptions(currentValue, columnIndex) {
+  const used = new Set(pendingConnectionImport.mappings.filter((_, index) => index !== columnIndex));
+  const options = [
+    `<option value="ignore">Don’t import</option>`,
+    ...importContactFields.map(([key, label]) =>
+      `<option value="field:${key}" ${currentValue === `field:${key}` ? "selected" : ""} ${used.has(`field:${key}`) ? "disabled" : ""}>${label}${key === "name" ? " (required)" : ""}</option>`
+    ),
+    `<optgroup label="Custom fields">`,
+    ...(state.customFields || []).map(field => {
+      const value = `custom:${field.id}`;
+      return `<option value="${escapeHtml(value)}" ${currentValue === value ? "selected" : ""} ${used.has(value) ? "disabled" : ""}>${escapeHtml(field.name)}</option>`;
+    }),
+    `</optgroup>`,
+    `<option value="new:text:${columnIndex}" ${currentValue === `new:text:${columnIndex}` ? "selected" : ""}>Create text field: ${escapeHtml(pendingConnectionImport.headers[columnIndex])}</option>`,
+    `<option value="new:date:${columnIndex}" ${currentValue === `new:date:${columnIndex}` ? "selected" : ""}>Create date field: ${escapeHtml(pendingConnectionImport.headers[columnIndex])}</option>`
+  ];
+  return options.join("");
+}
+
+function renderConnectionImportReview() {
+  if (!pendingConnectionImport) return;
+  analyzeImportRows(pendingConnectionImport);
+  const importState = pendingConnectionImport;
+  const validRows = importState.rows.filter(row => !row.error).length;
+  const duplicateRows = importState.rows.filter(row => row.duplicate).length;
+  const includedRows = importState.rows.filter(row => row.include && !row.error).length;
+  const hasNameMapping = importState.mappings.includes("field:name");
+  const mappingMarkup = importState.headers.map((header, index) => `
+    <label class="import-mapping"><span title="${escapeHtml(header)}">${escapeHtml(header)}</span>
+      <select data-import-mapping="${index}" aria-label="Map ${escapeHtml(header)}">
+        ${importMappingOptions(importState.mappings[index] || "ignore", index)}
+      </select>
+    </label>`).join("");
+  const previewMarkup = importState.rows.map((row, index) => {
+    const values = importMappedValues(importState, row);
+    const status = row.error ? `<span class="import-status invalid">${row.error}</span>`
+      : row.duplicate ? `<span class="import-status duplicate">Duplicate of ${escapeHtml(row.duplicate)}</span>`
+        : `<span class="import-status ready">Ready</span>`;
+    return `<tr>
+      <td><input type="checkbox" data-import-row="${index}" aria-label="Import ${escapeHtml(values.name || `row ${index + 1}`)}" ${row.include && !row.error ? "checked" : ""} ${row.error ? "disabled" : ""}></td>
+      <td>${escapeHtml(values.name || "—")}</td>
+      <td>${escapeHtml(values.email || "—")}</td>
+      <td>${escapeHtml(values.company || "—")}</td>
+      <td>${status}</td>
+    </tr>`;
+  }).join("");
+  const content = `
+    <p class="modal-subtitle import-source-name">${escapeHtml(importState.filename)} · ${importState.rows.length} rows found. Match file columns to Warmly fields, then review what will be added.</p>
+    <div class="import-summary"><span><strong>${validRows - duplicateRows}</strong> new</span><span><strong>${duplicateRows}</strong> possible duplicates</span><span><strong>${includedRows}</strong> selected</span></div>
+    ${!hasNameMapping ? `<p class="import-warning">Map a column to <strong>Name (required)</strong> before importing.</p>` : ""}
+    <div class="import-mappings">${mappingMarkup}</div>
+    <div class="import-preview-wrap"><table class="import-preview"><thead><tr><th>ADD</th><th>NAME</th><th>EMAIL</th><th>COMPANY</th><th>REVIEW</th></tr></thead><tbody>${previewMarkup}</tbody></table></div>
+    <div class="form-actions import-form-actions">
+      <button class="button secondary-button close-form" type="button">Cancel</button>
+      <button class="button button-primary" id="confirm-connection-import" type="button" ${!hasNameMapping || includedRows === 0 ? "disabled" : ""}>Import ${includedRows} ${includedRows === 1 ? "connection" : "connections"}</button>
+    </div>`;
+  showModal("Import your connections", "REVIEW BEFORE ADDING", content);
+  document.querySelector(".modal").classList.add("import-modal");
+  document.querySelector("#modal-content .close-form").addEventListener("click", closeModal);
+  document.querySelectorAll("[data-import-mapping]").forEach(select => select.addEventListener("change", event => {
+    const index = Number(event.currentTarget.dataset.importMapping);
+    pendingConnectionImport.mappings[index] = event.currentTarget.value;
+    renderConnectionImportReview();
+  }));
+  document.querySelectorAll("[data-import-row]").forEach(input => input.addEventListener("change", event => {
+    const index = Number(event.currentTarget.dataset.importRow);
+    pendingConnectionImport.rows[index].include = event.currentTarget.checked;
+    pendingConnectionImport.rows[index].includeTouched = true;
+    renderConnectionImportReview();
+  }));
+  document.getElementById("confirm-connection-import").addEventListener("click", commitConnectionImport);
+}
+
+function uniqueImportedFieldName(header, usedNames) {
+  const base = header.slice(0, 32).trim() || "Imported field";
+  let name = base;
+  let suffix = 2;
+  while (usedNames.has(name.toLowerCase())) {
+    const ending = ` ${suffix++}`;
+    name = `${base.slice(0, 32 - ending.length).trimEnd()}${ending}`;
+  }
+  usedNames.add(name.toLowerCase());
+  return name;
+}
+
+function normalizeImportedDate(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  const toIsoDate = (year, month, day) => {
+    const date = new Date(Date.UTC(year, month - 1, day));
+    if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return "";
+    return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  };
+  const isoDate = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoDate) return toIsoDate(Number(isoDate[1]), Number(isoDate[2]), Number(isoDate[3]));
+  const usDate = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (usDate) return toIsoDate(Number(usDate[3]), Number(usDate[1]), Number(usDate[2]));
+  const parsed = new Date(text);
+  if (Number.isNaN(parsed.getTime())) return "";
+  return toIsoDate(parsed.getFullYear(), parsed.getMonth() + 1, parsed.getDate());
+}
+
+function commitConnectionImport(event) {
+  const button = event.currentTarget;
+  const importState = pendingConnectionImport;
+  if (!importState) return;
+  const selectedRows = importState.rows.filter(row => row.include && !row.error);
+  if (!selectedRows.length || !importState.mappings.includes("field:name")) return;
+  button.disabled = true;
+  const usedNames = new Set([
+    ...importContactFields.map(([, label]) => label.toLowerCase()),
+    ...(state.customFields || []).map(field => field.name.toLowerCase())
+  ]);
+  const createdFields = new Map();
+  importState.mappings.forEach((mapping, index) => {
+    if (!mapping.startsWith("new:")) return;
+    const field = {
+      id: crypto.randomUUID(),
+      name: uniqueImportedFieldName(importState.headers[index], usedNames),
+      type: mapping.startsWith("new:date:") ? "date" : "text"
+    };
+    state.customFields.push(field);
+    createdFields.set(mapping, field);
+  });
+  for (const row of selectedRows) {
+    const mapped = importMappedValues(importState, row);
+    const contact = {
+      id: crypto.randomUUID(),
+      name: String(mapped.name || "").trim(),
+      email: String(mapped.email || "").trim(),
+      company: String(mapped.company || "").trim() || "—",
+      role: String(mapped.role || "").trim(),
+      relationship: String(mapped.relationship || "").trim() || "Other",
+      createdAt: normalizeImportedDate(mapped.createdAt) || dateOnly(),
+      notes: String(mapped.notes || "").trim(),
+      activities: [],
+      custom: {}
+    };
+    for (const [mapping, value] of Object.entries(mapped)) {
+      if (mapping.startsWith("custom:") && String(value).trim()) {
+        const field = state.customFields.find(item => `custom:${item.id}` === mapping);
+        const normalized = field?.type === "date" ? normalizeImportedDate(value) : String(value).trim();
+        if (normalized) contact.custom[field.id] = normalized;
+      } else if (mapping.startsWith("new:") && String(value).trim()) {
+        const field = createdFields.get(mapping);
+        const normalized = field?.type === "date" ? normalizeImportedDate(value) : String(value).trim();
+        if (field && normalized) contact.custom[field.id] = normalized;
+      }
+    }
+    state.contacts.push(contact);
+  }
+  const importedCount = selectedRows.length;
+  pendingConnectionImport = null;
+  closeModal();
+  saveState();
+  render();
+  showToast(`${importedCount} ${importedCount === 1 ? "connection" : "connections"} imported`);
+}
+
 function dateOnly(date = new Date()) {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
@@ -666,11 +943,38 @@ function contactRow(contact) {
   const warmth = warmthFor(contact);
   return `<div class="contact-row" data-contact="${escapeHtml(contact.id)}" tabindex="0" role="button" aria-label="View ${escapeHtml(contact.name)}">
     <div class="contact-person"><span class="contact-avatar" style="${avatarStyle(contact)}">${escapeHtml(initials(contact.name))}</span><span class="person-copy"><strong>${escapeHtml(contact.name)}</strong><small>${escapeHtml(contact.role || contact.company || "In your circle")}</small></span></div>
+    <span class="row-organization" title="${escapeHtml(contact.company === "—" ? "" : contact.company || "")}">${escapeHtml(contact.company === "—" ? "—" : contact.company || "—")}</span>
     <span class="row-relationship">${escapeHtml(contact.relationship || "Connection")}</span>
     <span class="row-date">${activity ? prettyDate(activity.date) : "Just added"}<small>${activity ? escapeHtml(activity.note || activityLabels[activity.type]) : "No moments yet"}</small></span>
     <span class="warmth ${warmth.state}"><i class="warmth-dot"></i>${warmth.label}</span>
     <button class="row-more" aria-label="More about ${escapeHtml(contact.name)}">···</button>
   </div>`;
+}
+
+function compareContacts(a, b) {
+  if (contactSort.key === "date") {
+    const firstDate = latestActivity(a)?.date || "";
+    const secondDate = latestActivity(b)?.date || "";
+    if (!firstDate || !secondDate) return firstDate ? -1 : secondDate ? 1 : a.name.localeCompare(b.name);
+    const dateOrder = firstDate.localeCompare(secondDate) * (contactSort.direction === "desc" ? -1 : 1);
+    return dateOrder || a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+  }
+  const firstValue = contactSort.key === "company" ? (a.company === "—" ? "" : a.company || "")
+    : contactSort.key === "relationship" ? a.relationship || ""
+      : a.name || "";
+  const secondValue = contactSort.key === "company" ? (b.company === "—" ? "" : b.company || "")
+    : contactSort.key === "relationship" ? b.relationship || ""
+      : b.name || "";
+  return firstValue.localeCompare(secondValue, undefined, { sensitivity: "base", numeric: true })
+    * (contactSort.direction === "desc" ? -1 : 1);
+}
+
+function renderContactSortHeaders() {
+  document.querySelectorAll(".contact-sort").forEach(button => {
+    const active = button.dataset.sort === contactSort.key;
+    button.setAttribute("aria-sort", active ? (contactSort.direction === "asc" ? "ascending" : "descending") : "none");
+    button.querySelector("span").textContent = active ? (contactSort.direction === "asc" ? "↑" : "↓") : "";
+  });
 }
 
 function renderContacts() {
@@ -680,8 +984,9 @@ function renderContacts() {
     const matchesFilter = activeFilter === "all" || warmth === activeFilter;
     const haystack = [contact.name, contact.email, contact.company, contact.role, contact.relationship, ...Object.values(contact.custom || {})].join(" ").toLowerCase();
     return matchesFilter && haystack.includes(query);
-  }).sort((a, b) => a.name.localeCompare(b.name));
+  }).sort(compareContacts);
   document.getElementById("contacts-table").innerHTML = filtered.map(contactRow).join("");
+  renderContactSortHeaders();
   document.getElementById("contacts-empty").classList.toggle("hidden", filtered.length > 0);
   document.getElementById("contacts-count-label").textContent = `${filtered.length} ${filtered.length === 1 ? "person" : "people"}`;
 }
@@ -759,7 +1064,7 @@ function renderAccountSettings() {
 function exportContactRows() {
   const customFields = state.customFields || [];
   const headers = [
-    "Name", "Email", "Company", "Role", "Relationship", "First connected", "Notes",
+    "Name", "Email", "Organization", "Role", "Relationship", "First connected", "Notes",
     ...customFields.map(field => field.name)
   ];
   const rows = state.contacts.map(contact => [
@@ -771,7 +1076,7 @@ function exportContactRows() {
 }
 
 function exportActivityRows() {
-  const rows = [["Contact", "Email", "Company", "Type", "Date", "Note"]];
+  const rows = [["Contact", "Email", "Organization", "Type", "Date", "Note"]];
   for (const contact of state.contacts) {
     for (const activity of contact.activities || []) {
       rows.push([
@@ -902,6 +1207,8 @@ function showModal(title, kicker, content, onSubmit) {
 
 function closeModal() {
   document.getElementById("modal-backdrop").classList.add("hidden");
+  document.querySelector(".modal").classList.remove("import-modal");
+  pendingConnectionImport = null;
 }
 
 function customFieldMarkup(contact = null) {
@@ -915,7 +1222,7 @@ function openContactForm(contact = null) {
     <div class="field"><label for="name">Name *</label><input id="name" name="name" required value="${escapeHtml(contact?.name || "")}" placeholder="e.g. Alex Morgan"></div>
     <div class="field"><label for="relationship">Relationship</label><select id="relationship" name="relationship">${["Friend", "Professional", "Former colleague", "Family", "Mentor", "Other"].map(value => `<option ${contact?.relationship === value ? "selected" : ""}>${value}</option>`).join("")}</select></div>
     <div class="field"><label for="email">Email</label><input id="email" name="email" type="email" value="${escapeHtml(contact?.email || "")}" placeholder="alex@example.com"></div>
-    <div class="field"><label for="company">Company / organization</label><input id="company" name="company" value="${escapeHtml(contact?.company === "—" ? "" : contact?.company || "")}" placeholder="Where they work"></div>
+    <div class="field"><label for="company">Organization</label><input id="company" name="company" value="${escapeHtml(contact?.company === "—" ? "" : contact?.company || "")}" placeholder="Where they work"></div>
     <div class="field"><label for="role">Role / title</label><input id="role" name="role" value="${escapeHtml(contact?.role || "")}" placeholder="What they do"></div>
     <div class="field"><label for="first-date">First connection</label><input id="first-date" name="firstDate" type="date" value="${escapeHtml(contact?.createdAt || dateOnly())}"></div>
     ${customMarkup}
@@ -1040,6 +1347,15 @@ document.getElementById("script-contact").addEventListener("change", updateEmail
 document.getElementById("copy-email").addEventListener("click", copyEmail);
 document.getElementById("add-contact-top").addEventListener("click", () => openContactForm());
 document.getElementById("add-contact-page").addEventListener("click", () => openContactForm());
+document.getElementById("import-connections").addEventListener("click", () => {
+  const input = document.getElementById("connection-import-file");
+  input.value = "";
+  input.click();
+});
+document.getElementById("connection-import-file").addEventListener("change", event => {
+  const [file] = event.currentTarget.files;
+  void openConnectionImport(file);
+});
 document.getElementById("empty-add-contact").addEventListener("click", () => openContactForm());
 document.getElementById("view-all-contacts").addEventListener("click", () => switchView("contacts"));
 document.getElementById("follow-up-list").addEventListener("click", event => {
@@ -1048,6 +1364,17 @@ document.getElementById("follow-up-list").addEventListener("click", event => {
 });
 document.getElementById("manage-fields").addEventListener("click", openFieldManager);
 document.getElementById("contact-search").addEventListener("input", renderContacts);
+document.querySelector(".contacts-table-head").addEventListener("click", event => {
+  const button = event.target.closest(".contact-sort");
+  if (!button) return;
+  const key = button.dataset.sort;
+  if (contactSort.key === key) {
+    contactSort.direction = contactSort.direction === "asc" ? "desc" : "asc";
+  } else {
+    contactSort = { key, direction: key === "date" ? "desc" : "asc" };
+  }
+  renderContacts();
+});
 document.getElementById("trend-range").addEventListener("change", renderCharts);
 document.querySelectorAll(".filter-pill").forEach(button => button.addEventListener("click", () => {
   activeFilter = button.dataset.filter;
