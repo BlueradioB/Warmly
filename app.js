@@ -16,6 +16,7 @@ const initialState = {
 let hasSavedLocalData = false;
 let state = loadState();
 let localImportCandidate = hasSavedLocalData ? structuredClone(state) : null;
+const legacyLocalImportCandidate = localImportCandidate;
 let activeFilter = "all";
 let contactSort = { key: "name", direction: "asc" };
 let activeContactId = null;
@@ -117,7 +118,7 @@ function loadState() {
 function saveState() {
   if (supabaseClient && currentUser) ensureRemoteIds(state);
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    localStorage.setItem(currentUser ? `${STORAGE_KEY}:${currentUser.id}` : STORAGE_KEY, JSON.stringify(state));
   } catch (error) {
     console.error("Warmly could not save CRM data.", error);
     showToast("Couldn’t save your changes. Check browser storage.");
@@ -232,7 +233,7 @@ function setAuthMode(mode) {
   document.getElementById("auth-submit").innerHTML = `${isSignUp ? "Create account" : "Sign in"} <span>→</span>`;
   document.getElementById("forgot-password").classList.toggle("hidden", isSignUp);
   document.getElementById("auth-description").textContent = isSignUp
-    ? "Create an account with your owner email. Only the email allowlisted for this Warmly space can access it."
+    ? "Create your own private Warmly space. Your contacts and moments are visible only to you."
     : "Sign in to your private Warmly space with your email and password.";
   setAuthStatus("");
 }
@@ -340,20 +341,14 @@ async function openPrivateWorkspace(user) {
   currentUser = user;
   showAuthGate("Opening your private circle…");
   try {
-    const claim = await supabaseClient.rpc("claim_owner");
-    if (claim.error) throw claim.error;
-    if (claim.data !== true) {
+    const owner = await supabaseClient.from("app_owner").select("user_id, legacy_owner")
+      .eq("user_id", user.id).maybeSingle();
+    if (owner.error) throw owner.error;
+    if (!owner.data) {
       currentUser = null;
       remoteSnapshot = null;
       await supabaseClient.auth.signOut();
-      showAuthGate("This email isn’t the one allowlisted for this private Warmly space. Check the owner email configured in Supabase.");
-      return;
-    }
-    const owner = await supabaseClient.from("app_owner").select("user_id").maybeSingle();
-    if (owner.error) throw owner.error;
-    if (!owner.data || owner.data.user_id !== user.id) {
-      await supabaseClient.auth.signOut();
-      showAuthGate("This account isn’t the configured owner of this private Warmly space.");
+      showAuthGate("Your private workspace isn’t ready yet. Please create your account again or contact support.");
       return;
     }
     const [contactsResult, activitiesResult, fieldsResult, valuesResult] = await Promise.all([
@@ -373,10 +368,17 @@ async function openPrivateWorkspace(user) {
     };
     if (!contactsResult.data.length) {
       state = { contacts: [], customFields: [] };
-      if (localImportCandidate?.contacts?.length) {
+      const savedUserState = loadUserState(user.id);
+      const savedLocalState = owner.data.legacy_owner ? legacyLocalImportCandidate : null;
+      localImportCandidate = savedUserState?.contacts?.length
+        ? savedUserState
+        : savedLocalState?.contacts?.length ? savedLocalState : null;
+      if (localImportCandidate) {
         document.getElementById("import-description").textContent =
           `Import ${localImportCandidate.contacts.length} saved contacts and their logged moments, or start with an empty circle.`;
         document.getElementById("import-notice").classList.remove("hidden");
+      } else {
+        document.getElementById("import-notice").classList.add("hidden");
       }
     } else {
       state = hydrateRemoteState(remoteSnapshot);
@@ -391,7 +393,7 @@ async function openPrivateWorkspace(user) {
     currentUser = null;
     remoteSnapshot = null;
     await supabaseClient.auth.signOut();
-    showAuthGate(error.message?.includes("app_owner") || error.message?.includes("claim_owner")
+    showAuthGate(error.message?.includes("app_owner")
       ? "Warmly’s private database isn’t set up yet."
       : "Couldn’t open your private space. Please try again or check the setup.");
   } finally {
@@ -418,11 +420,21 @@ function hydrateRemoteState(snapshot) {
 
 function saveLocalState() {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    localStorage.setItem(currentUser ? `${STORAGE_KEY}:${currentUser.id}` : STORAGE_KEY, JSON.stringify(state));
   } catch (error) {
     console.error("Warmly could not save the local data cache.", error);
     showToast("Your changes synced, but the local cache couldn’t be updated.");
   }
+}
+
+function loadUserState(userId) {
+  try {
+    const saved = JSON.parse(localStorage.getItem(`${STORAGE_KEY}:${userId}`));
+    if (saved && Array.isArray(saved.contacts)) return { ...initialState, ...saved };
+  } catch (error) {
+    console.warn("Warmly could not read this account’s local CRM cache.", error);
+  }
+  return null;
 }
 
 function ensureRemoteIds(snapshot) {
@@ -442,22 +454,22 @@ async function persistRemoteState(snapshot) {
   if (!currentUser) return;
   ensureRemoteIds(snapshot);
   const contacts = snapshot.contacts.map(contact => ({
-    id: contact.id, name: contact.name, email: contact.email || "", company: contact.company || "—",
+    id: contact.id, user_id: currentUser.id, name: contact.name, email: contact.email || "", company: contact.company || "—",
     role: contact.role || "", relationship: contact.relationship || "Connection",
     notes: contact.notes || "", created_on: contact.createdAt || dateOnly()
   }));
   const fields = snapshot.customFields.map(field => ({
-    id: field.id, name: field.name, value_type: field.type === "date" ? "date" : "text"
+    id: field.id, user_id: currentUser.id, name: field.name, value_type: field.type === "date" ? "date" : "text"
   }));
   const activities = snapshot.contacts.flatMap(contact => (contact.activities || []).map(activity => ({
-    id: activity.id, contact_id: contact.id, type: activity.type,
+    id: activity.id, contact_id: contact.id, user_id: currentUser.id, type: activity.type,
     happened_on: activity.date || dateOnly(), note: activity.note || ""
   })));
   const customValues = snapshot.contacts.flatMap(contact => snapshot.customFields.flatMap(field => {
     const value = contact.custom?.[field.id];
     if (value === undefined || value === null || value === "") return [];
     return [{
-      contact_id: contact.id, field_id: field.id,
+      contact_id: contact.id, field_id: field.id, user_id: currentUser.id,
       value_text: field.type === "date" ? null : String(value),
       value_date: field.type === "date" ? value : null
     }];
