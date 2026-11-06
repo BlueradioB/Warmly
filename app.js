@@ -49,8 +49,8 @@ const emailTemplates = {
     subject: name => name ? `Lovely meeting you, ${name}` : "Lovely meeting you",
     greeting: "Hi",
     signoff: "Warmly,\n[Your name]",
-    mark: "♥",
-    markClass: "suit-heart",
+    mark: "✿",
+    markClass: "botanical-mark-flower",
     banks: [
       { id: "opening", title: "Open the conversation", options: [
         ["meeting", "I really enjoyed meeting you at [place or event]. I’m glad we had a chance to talk."],
@@ -74,8 +74,8 @@ const emailTemplates = {
     subject: name => `Thinking of you${name ? `, ${name}` : ""}`,
     greeting: "Hi",
     signoff: "Take care,\n[Your name]",
-    mark: "♦",
-    markClass: "suit-diamond",
+    mark: "❧",
+    markClass: "botanical-mark-fern",
     banks: [
       { id: "opening", title: "Start with a hello", options: [
         ["conversation", "Something reminded me of our conversation about [topic], so I thought I’d say hello."],
@@ -929,7 +929,7 @@ function renderCompanyFollowUps() {
   document.getElementById("follow-up-count").textContent = reminders.length;
   document.getElementById("follow-up-list").innerHTML = reminders.map(({ contact, outreach, businessDays }) => `
     <article class="follow-up-card">
-      <span class="follow-up-heart suit-heart" aria-hidden="true">♥</span>
+      <span class="follow-up-botanical" aria-hidden="true">❧</span>
       <div class="follow-up-person">
         <strong>${escapeHtml(contact.name)}</strong>
         <span>${escapeHtml(contact.company)} · Reached out ${escapeHtml(prettyDate(outreach.date))} · ${businessDays} business days</span>
@@ -1038,7 +1038,7 @@ function lineChart(months, values) {
   }).join("");
   const labels = months.map((date, index) => `<text class="chart-axis" text-anchor="middle" x="${points[index].x}" y="${height - 3}">${date.toLocaleDateString(undefined, { month: "short" })}</text>`).join("");
   const dots = points.map((point, index) => `<circle class="chart-point" cx="${point.x}" cy="${point.y}" r="3"><title>${months[index].toLocaleDateString(undefined, { month: "long", year: "numeric" })}: ${values[index]} activities</title></circle>`).join("");
-  return `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="areaFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#e6a16c" stop-opacity=".2"></stop><stop offset="100%" stop-color="#e6a16c" stop-opacity="0"></stop></linearGradient></defs>${grid}<path class="chart-area" d="${area}"></path><path class="chart-path" d="${path}"></path>${dots}${labels}</svg>`;
+  return `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="areaFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#7e9b75" stop-opacity=".2"></stop><stop offset="100%" stop-color="#7e9b75" stop-opacity="0"></stop></linearGradient></defs>${grid}<path class="chart-area" d="${area}"></path><path class="chart-path" d="${path}"></path>${dots}${labels}</svg>`;
 }
 
 function switchView(view) {
@@ -1252,7 +1252,7 @@ function openContactForm(contact = null) {
 function openActivity(contact) {
   const content = `<div class="contact-detail-head"><span class="contact-avatar" style="${avatarStyle(contact)}">${escapeHtml(initials(contact.name))}</span><div><h3>${escapeHtml(contact.name)}</h3><p>What kind of moment did you share?</p></div></div>
     <form><div class="activity-options">
-    ${[["outreach", "♦", "Reached out", "suit-diamond"], ["response", "♥", "They replied", "suit-heart"], ["call", "♣", "Had a call", "suit-club"], ["connection", "♠", "Met / connected", "suit-spade"]].map(([type, icon, label, suit]) => `<label class="activity-choice"><input type="radio" name="type" value="${type}" ${type === "outreach" ? "checked" : ""} hidden><span class="${suit}">${icon}</span>${label}</label>`).join("")}
+    ${[["outreach", "↗", "Reached out", "activity-outreach"], ["response", "✉", "They replied", "activity-response"], ["call", "◖", "Had a call", "activity-call"], ["connection", "⌁", "Met / connected", "activity-connection"]].map(([type, icon, label, kind]) => `<label class="activity-choice"><input type="radio" name="type" value="${type}" ${type === "outreach" ? "checked" : ""} hidden><span class="${kind}">${icon}</span>${label}</label>`).join("")}
     </div><div class="form-grid"><div class="field"><label for="activity-date">When</label><input type="date" id="activity-date" name="date" value="${dateOnly()}"></div><div class="field"><label for="activity-note">A little note</label><input id="activity-note" name="note" placeholder="Coffee, a text, a hello..."></div></div><div class="form-actions"><button class="button secondary-button close-form" type="button">Cancel</button><button class="button button-primary" type="submit">Save this moment</button></div></form>`;
   showModal("Save a little moment", "KEEP THE CONNECTION GOING", content, data => {
     contact.activities ||= [];
