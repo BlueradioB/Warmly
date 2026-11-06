@@ -1,6 +1,6 @@
 # Warmly
 
-Warmly is a private, single-user personal CRM. It can run locally with browser storage, or use Supabase for email-and-password sign-in and cloud persistence.
+Warmly is a personal CRM with private, per-account workspaces. It can run locally with browser storage, or use Supabase for email-and-password sign-in and cloud persistence.
 
 ## Local preview
 
@@ -10,21 +10,18 @@ Open `index.html` from a local static web server. When `/api/config` is unavaila
 
 1. Create a Supabase project in a region you prefer.
 2. In **Project Settings → API**, copy the project URL and the publishable (anon) key.
-3. Run `supabase/migrations/20261103000000_initial_schema.sql` and then `supabase/migrations/20261103010000_owner_email_signup.sql` in the Supabase SQL editor. The second migration upgrades an existing `app_owner` row by looking up its Auth email.
-4. In **Authentication → Signups**, enable email sign-ups so the form can create your Auth account. Warmly does not grant access just because an account can be created. If email confirmation is enabled, confirm your address before signing in.
-5. In the SQL editor, allowlist the single email that may own the app. Use the exact email you plan to enter in Warmly:
+3. Run these migrations in order in the Supabase SQL editor:
+   - `supabase/migrations/20261103000000_initial_schema.sql`
+   - `supabase/migrations/20261103010000_owner_email_signup.sql`
+   - `supabase/migrations/20261106000000_multi_user_workspaces.sql`
 
-   ```sql
-   insert into public.app_owner (allowed_email)
-   values (lower('you@example.com'));
-   ```
+   If you already deployed the earlier single-owner version, run only the new `20261106000000_multi_user_workspaces.sql` migration. It preserves the existing owner’s data and makes it private to that account.
+4. In **Authentication → Signups**, enable email sign-ups. If email confirmation is enabled, confirm your address before signing in.
+5. In **Authentication → URL Configuration**, set the site URL to your Vercel deployment URL and add that URL to the redirect allow list.
+6. Configure the Vercel environment variables `SUPABASE_URL` and `SUPABASE_ANON_KEY` for the deployment. These contain the project URL and publishable client key; never put a Supabase service-role key in the app.
+7. Deploy and choose **Create account**. Every Supabase account receives a separate private workspace. Existing local contacts are offered for import only when that account has no cloud contacts; local caches are kept separate by account.
 
-   If `app_owner` already contains your owner account, the migration preserves it and backfills its email; don’t insert a second row. The database enforces a single owner slot, and only the allowlisted email can claim it.
-6. In **Authentication → URL Configuration**, set the site URL to your Vercel deployment URL and add that URL to the redirect allow list.
-7. Configure the Vercel environment variables `SUPABASE_URL` and `SUPABASE_ANON_KEY` for the deployment. These contain the project URL and publishable client key; never put a Supabase service-role key in the app.
-8. Deploy, choose **Create account**, and register with the allowlisted email and a password. If email confirmation is enabled, confirm your address, then sign in with your email and password. Existing local contacts are offered for import only when the cloud account has no contacts.
-
-The database has row-level security enabled on every exposed table. The `app_owner` allow-list gates reads and writes, so other authenticated Supabase accounts cannot access Warmly data. Accounts whose email does not match the preconfigured owner email are signed out and cannot access CRM data. Use **Forgot password?** on the sign-in form to set a password for an existing account or recover access.
+The database has row-level security enabled on every exposed table. Each contact, activity, custom field, and custom value is assigned to its account, and policies and relationship constraints prevent one user from reading or attaching records to another user’s workspace. Use **Forgot password?** on the sign-in form to recover access.
 
 ## Export your data
 

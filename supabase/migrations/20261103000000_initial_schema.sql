@@ -111,4 +111,4 @@ create trigger custom_values_check_type
   before insert or update on public.custom_values
   for each row execute function public.validate_custom_value_type();
 
--- Apply the owner-email signup migration next, then allowlist your email before signing up.
+-- Apply the owner-email signup migration and then the multi-user workspace migration.
