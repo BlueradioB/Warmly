@@ -47,51 +47,76 @@ const importContactFields = [
 const emailTemplates = {
   new: {
     title: "A thoughtful follow-up",
-    subject: name => name ? `Lovely meeting you, ${name}` : "Lovely meeting you",
+    subject: name => name ? `Great meeting you, ${name}` : "Great meeting you",
     greeting: "Hi",
-    signoff: "Warmly,\n[Your name]",
+    signoff: "Best,\n[Your name]",
     mark: "✿",
     markClass: "botanical-mark-flower",
     banks: [
-      { id: "opening", title: "Open the conversation", options: [
-        ["meeting", "I really enjoyed meeting you at [place or event]. I’m glad we had a chance to talk."],
-        ["introduction", "Thanks for making time to chat recently. I’ve been thinking about what you shared."],
-        ["introduced", "It was a pleasure being introduced by [person]. I’m glad our paths crossed."]
+      { id: "opening", title: "Reconnect after meeting", options: [
+        ["meeting", "It was great meeting you at [event or place]. I enjoyed hearing about your work in [field or area]."],
+        ["introduction", "Thanks for taking the time to speak with me. I appreciated your perspective on [topic]."],
+        ["introduced", "I’m glad [person] introduced us. I enjoyed learning about your work at [company]."]
       ] },
-      { id: "personal", title: "Make it personal", options: [
-        ["perspective", "Your perspective on [topic] stuck with me, especially [specific detail]."],
-        ["learn", "I’d love to hear more about [their project or interest] when you have a moment."],
-        ["resource", "Here’s the [resource or link] I mentioned—I thought it might be useful."]
+      { id: "personal", title: "Share your direction", options: [
+        ["perspective", "I’m exploring opportunities in [role or field], and your experience with [specific area] really stood out to me."],
+        ["learn", "I’m currently looking for my next role in [field]. I’d be glad to share more about my background if useful."],
+        ["resource", "As I mentioned, I’m focused on [role or field]. Here’s my [portfolio, project, or LinkedIn profile] for a little more context."]
       ] },
       { id: "next-step", title: "Leave a next step", options: [
-        ["call", "Would you be open to a short call sometime in the next couple of weeks?"],
-        ["offer", "If it’s helpful, I’d be glad to [offer or next step]. No pressure either way."],
-        ["goodbye", "Either way, I hope the rest of your week is off to a good start."]
+        ["call", "Would you be open to a brief conversation sometime in the next couple of weeks? I’d love to hear more about your path into [field or company]."],
+        ["advice", "If you have a suggestion for someone else I should learn from, I’d be grateful for the introduction."],
+        ["goodbye", "Thanks again for the conversation. I hope we can stay in touch."]
       ] }
     ]
   },
   warm: {
-    title: "A little hello",
-    subject: name => `Thinking of you${name ? `, ${name}` : ""}`,
+    title: "Keep in touch",
+    subject: name => `A quick hello${name ? `, ${name}` : ""}`,
     greeting: "Hi",
-    signoff: "Take care,\n[Your name]",
+    signoff: "Best,\n[Your name]",
     mark: "❧",
     markClass: "botanical-mark-fern",
     banks: [
-      { id: "opening", title: "Start with a hello", options: [
-        ["conversation", "Something reminded me of our conversation about [topic], so I thought I’d say hello."],
-        ["check-in", "How have things been going with [project or life update]?"],
-        ["resource", "I came across [article, event, or resource] and thought you might enjoy it."]
+      { id: "opening", title: "Start with a check-in", options: [
+        ["conversation", "I was thinking about our conversation about [topic] and wanted to see how things are going."],
+        ["check-in", "How have things been going at [company] since we last spoke?"],
+        ["update", "I wanted to share a quick update: I’m still exploring [role or field] opportunities and enjoying learning from people in the space."]
       ] },
-      { id: "personal", title: "Pick up their thread", options: [
-        ["follow-up", "How did [thing they mentioned] turn out? I’d love to hear."],
-        ["celebrate", "I saw your update about [good news]—congratulations! That’s wonderful."],
-        ["memory", "I was thinking about [shared memory or moment] the other day. It still makes me smile."]
+      { id: "personal", title: "Reconnect around their work", options: [
+        ["follow-up", "How did [project or milestone] turn out? I’d love to hear how it went."],
+        ["celebrate", "Congratulations on [recent news or achievement]. It’s great to see your work getting noticed."],
+        ["insight", "Your advice about [topic] has stayed with me, especially as I’ve been [relevant action]."]
       ] },
-      { id: "close", title: "Close warmly", options: [
-        ["coffee", "Would you be up for catching up over coffee or a quick call sometime soon?"],
-        ["no-ask", "No ask today—I just wanted to see how you’re doing."],
-        ["open", "Whenever you have a moment, I’d love to hear what’s new with you."]
+      { id: "close", title: "Suggest a next step", options: [
+        ["coffee", "Would you have time for a quick catch-up in the next few weeks? I’d love to hear what you’re seeing in the field."],
+        ["advice", "If anyone comes to mind who might be helpful for me to connect with, I’d really appreciate a suggestion."],
+        ["open", "No immediate ask—I just wanted to say hello and keep in touch."]
+      ] }
+    ]
+  },
+  cold: {
+    title: "Cold outreach",
+    subject: name => `Thank you for connecting${name ? `, ${name}` : ""}`,
+    greeting: "Hi",
+    signoff: "Best,\n[Your name]",
+    mark: "↗",
+    markClass: "botanical-mark-cold",
+    banks: [
+      { id: "opening", title: "Make the introduction", options: [
+        ["linkedin", "Thank you for connecting on LinkedIn. I came across your profile while learning more about [company or field], and your work in [specific area] caught my attention."],
+        ["mutual", "I’m reaching out because we both know [mutual connection] and share an interest in [field or area]."],
+        ["work", "I’ve been following [company]’s work on [specific project or topic] and was especially interested in [specific detail]."]
+      ] },
+      { id: "personal", title: "Briefly share your background", options: [
+        ["search", "I’m currently looking for a [role] position, with a background in [skill or experience]."],
+        ["transition", "I’m making a move into [field or role] after working in [previous area], where I [relevant accomplishment]."],
+        ["specific", "My experience with [relevant skill or project] seems closely related to your work in [specific area]."]
+      ] },
+      { id: "close", title: "Make a low-pressure ask", options: [
+        ["informational", "If you’re available, would you be open to a brief 15-minute conversation about your experience at [company or in the field]?"],
+        ["advice", "If you have a moment, I’d value any advice you might share about getting started in [field or role]."],
+        ["resource", "If there’s a public resource or person you’d recommend I look into, I’d be grateful for a pointer."]
       ] }
     ]
   }
@@ -1193,12 +1218,10 @@ function updateEmailPreview() {
 }
 
 async function copyEmail() {
-  const subject = document.getElementById("email-subject").value.trim();
-  const body = document.getElementById("email-body").value.trim();
-  const email = `${subject ? `Subject: ${subject}\n\n` : ""}${body}`;
+  const emailBody = document.getElementById("email-body").value.trim();
   try {
-    await navigator.clipboard.writeText(email);
-    showToast("Email copied—ready to paste into your email client");
+    await navigator.clipboard.writeText(emailBody);
+    showToast("Email body copied—ready to paste into your email client");
   } catch (error) {
     console.error("Warmly could not copy the email to the clipboard.", error);
     showToast("Couldn’t copy automatically. Select the email text and copy it.");
