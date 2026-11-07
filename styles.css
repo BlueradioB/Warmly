@@ -249,12 +249,15 @@ h1 span { color: #668368; }
 .email-page-header { padding: 40px 0 23px; }
 .email-page-header h1 { font-size: 35px; }
 .email-page-header .welcome-copy { max-width: 560px; }
-.email-template-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 13px; }
+.email-template-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 13px; }
 .email-template-tab { display: flex; min-width: 0; min-height: 73px; align-items: center; gap: 13px; padding: 13px 15px; border: 1px solid #e2e9df; border-radius: 12px; background: var(--white); color: var(--ink); text-align: left; box-shadow: var(--shadow); transition: .16s ease; }
 .email-template-tab:hover { transform: translateY(-1px); border-color: #cbd9c6; }
 .email-template-tab.active { border-color: #9fb69a; box-shadow: 0 0 0 2px #e8f0e5, var(--shadow); }
+.email-template-tab:focus { outline: none; }
+.email-template-tab:focus-visible { outline: 3px solid #a9c49f; outline-offset: 2px; }
 .template-botanical { display: grid; width: 37px; height: 37px; flex: 0 0 auto; place-items: center; border-radius: 11px; background: #f8eee0; color: #cf8b59; font-size: 19px; }
 .email-template-tab:nth-child(2) .template-botanical { background: #eaf1e6; color: #6d8d69; }
+.template-botanical-cold { background: #eaf1f3; color: #6e8fa0; }
 .email-template-tab strong, .email-template-tab small { display: block; }
 .email-template-tab strong { margin-bottom: 4px; font: 700 12px "Manrope", sans-serif; }
 .email-template-tab small { color: #879588; font-size: 9px; }
@@ -284,6 +287,7 @@ h1 span { color: #668368; }
 .bank-option.selected .bank-option-mark { background: #e0eadc; color: #527650; }
 .botanical-mark-flower { color: #c98b57; }
 .botanical-mark-fern { color: #688b65; }
+.botanical-mark-cold { color: #6e8fa0; }
 .email-compose { position: sticky; top: 16px; padding: 18px; }
 .compose-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; }
 .compose-heading .section-kicker { margin-bottom: 5px; }
@@ -463,8 +467,8 @@ h1 span { color: #668368; }
   .activity-choice { padding: 9px; }
   .email-page-header { padding: 28px 0 20px; }
   .email-page-header h1 { font-size: 30px; }
-  .email-template-tabs { gap: 7px; }
-  .email-template-tab { min-height: 65px; gap: 8px; padding: 9px; }
+  .email-template-tabs { grid-template-columns: 1fr; gap: 7px; }
+  .email-template-tab { min-height: 60px; gap: 10px; padding: 9px 12px; }
   .template-botanical { width: 30px; height: 30px; font-size: 16px; }
   .email-template-tab strong { font-size: 10px; }
   .email-template-tab small { font-size: 8px; line-height: 1.4; }
